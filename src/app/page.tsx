@@ -1,35 +1,120 @@
 "use client";
 
 import { useState } from "react";
-import Board from "@/components/Board";
-import FestPanel from "@/components/FestPanel";
-import PlanPanel from "@/components/PlanPanel";
-import type { Session } from "@/lib/types";
+import BoardScreen from "@/components/BoardScreen";
+import CodeScreen from "@/components/CodeScreen";
+import DescribeScreen, { emptyForm, type DescribeForm } from "@/components/DescribeScreen";
+import DraftScreen from "@/components/DraftScreen";
+import JoinScreen from "@/components/JoinScreen";
+import WelcomeScreen from "@/components/WelcomeScreen";
+import { postJson, requestPlan } from "@/lib/api";
+import type { Plan, Session } from "@/lib/types";
+import type { PlanInput } from "@/lib/validate";
+
+type Screen = "welcome" | "join" | "describe" | "draft" | "code" | "board" | "plan";
+type Draft = { plan: Plan; input: PlanInput };
 
 export default function Home() {
+  const [screen, setScreen] = useState<Screen>("welcome");
   const [session, setSession] = useState<Session | null>(null);
+  const [form, setForm] = useState<DescribeForm>(emptyForm);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [busy, setBusy] = useState<"redraft" | "use" | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
+
+  async function redraft() {
+    if (!draft) return;
+    setBusy("redraft");
+    setDraftError(null);
+    const res = await requestPlan(draft.input);
+    setBusy(null);
+    if (res.plan) setDraft({ plan: res.plan, input: draft.input });
+    else setDraftError(res.error ?? "Couldn't generate a plan.");
+  }
+
+  // "Use this plan" is when the fest is actually created and the code is issued.
+  async function useThisPlan() {
+    setBusy("use");
+    setDraftError(null);
+    const res = await postJson("/api/fest", { name: form.name, department: form.department });
+    setBusy(null);
+    if (!res.ok || !res.data.code) {
+      return setDraftError(res.data.error ?? "Couldn't start the fest. Please try again.");
+    }
+    setSession({ festCode: res.data.code, name: form.name.trim(), department: form.department, isOrganiser: true });
+    setScreen("code");
+  }
+
+  function leave() {
+    setSession(null);
+    setScreen("welcome");
+  }
 
   return (
-    <main>
-      <header>
-        <h1>Fest Coordinator</h1>
-        <p className="muted">Plan the fest, then make sure every request has exactly one owner.</p>
-      </header>
-
-      {session && (
-        <section className="card">
-          <p className="muted">Fest code: share this with your team</p>
-          <p className="code">{session.festCode}</p>
-          <p className="muted">
-            You are {session.name} · {session.department}
-          </p>
-        </section>
+    <main className="app">
+      {screen === "welcome" && (
+        <WelcomeScreen onJoin={() => setScreen("join")} onCreate={() => setScreen("describe")} />
       )}
 
-      {/* Joined volunteers don't need the planner; everyone else (and the organiser) sees it. */}
-      {(!session || session.isOrganiser) && <PlanPanel />}
+      {screen === "join" && (
+        <JoinScreen
+          onBack={() => setScreen("welcome")}
+          onJoined={(s) => {
+            setSession(s);
+            setScreen("board");
+          }}
+        />
+      )}
 
-      {session ? <Board session={session} /> : <FestPanel onJoined={setSession} />}
+      {screen === "describe" && (
+        <DescribeScreen
+          form={form}
+          setForm={setForm}
+          onBack={() => setScreen("welcome")}
+          onDrafted={(plan, input) => {
+            setDraft({ plan, input });
+            setDraftError(null);
+            setScreen("draft");
+          }}
+        />
+      )}
+
+      {screen === "draft" && draft && (
+        <DraftScreen
+          plan={draft.plan}
+          input={draft.input}
+          backLabel="← Edit"
+          step="STEP 2 / 3"
+          onBack={() => setScreen("describe")}
+          footer={
+            <>
+              {draftError && <div className="note err" role="alert">{draftError}</div>}
+              <div className="btn-grid split">
+                <button className="btn ghost medium" onClick={redraft} disabled={busy !== null}>
+                  {busy === "redraft" ? "Drafting…" : "Redraft"}
+                </button>
+                <button className="btn medium" onClick={useThisPlan} disabled={busy !== null}>
+                  {busy === "use" ? "Starting…" : "Use this plan"}
+                </button>
+              </div>
+            </>
+          }
+        />
+      )}
+
+      {screen === "code" && session && <CodeScreen code={session.festCode} onOpen={() => setScreen("board")} />}
+
+      {screen === "board" && session && (
+        <BoardScreen
+          session={session}
+          onLeave={leave}
+          onShowPlan={session.isOrganiser && draft ? () => setScreen("plan") : undefined}
+        />
+      )}
+
+      {screen === "plan" && draft && (
+        <DraftScreen plan={draft.plan} input={draft.input} backLabel="← Board" onBack={() => setScreen("board")} />
+      )}
     </main>
   );
 }
