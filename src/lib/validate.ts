@@ -13,16 +13,25 @@ export const DEPARTMENTS = [
   "Safety & Medical",
 ];
 
+// The organiser oversees everything and belongs to no department.
+export const ORGANISER_DEPT = "Organiser";
+
 export const FEST_TYPES = ["Cultural", "Technical", "Sports", "Mixed / General"];
 
 export const MAX_REQUEST_LENGTH = 200;
 export const MAX_LOCATION_LENGTH = 80;
+export const MAX_DETAILS_LENGTH = 1500;
+
+// A plan task's "day": 0 is Preparation, 1..days are event days, days + 1 is Wrap-up.
+export const MIN_TASKS = 6;
+export const MAX_TASKS = 14;
 
 export type PlanInput = {
   festType: string;
   days: number;
   attendance: number;
   highlights: string;
+  details?: string; // optional: guests, judges, venues, timings
 };
 
 // Returns a message to show the user, or null if the form is fine.
@@ -39,6 +48,9 @@ export function validatePlanInput(input: PlanInput): string | null {
     return "Describe the highlights in a few more words, e.g. the main events you plan.";
   }
   if (highlights.length > 1000) return "Highlights are too long (max 1000 characters).";
+  if ((input.details ?? "").trim().length > MAX_DETAILS_LENGTH) {
+    return `Extra details are too long (max ${MAX_DETAILS_LENGTH} characters).`;
+  }
   return null;
 }
 
@@ -67,22 +79,25 @@ export function validatePlan(raw: unknown, days: number): PlanCheck {
   const checked: Plan["departments"] = [];
   for (const name of DEPARTMENTS) {
     const tasks = (byName.get(name) as { tasks?: unknown }).tasks;
-    if (!Array.isArray(tasks) || tasks.length < 3 || tasks.length > 5) {
-      return fail(`"${name}" must have 3 to 5 tasks`);
+    if (!Array.isArray(tasks) || tasks.length < MIN_TASKS || tasks.length > MAX_TASKS) {
+      return fail(`"${name}" must have ${MIN_TASKS} to ${MAX_TASKS} tasks`);
     }
     const cleanTasks = [];
     for (const t of tasks) {
       const title = (t as { title?: unknown } | null)?.title;
       const day = (t as { day?: unknown } | null)?.day;
-      if (typeof title !== "string" || title.trim() === "" || title.length > 200) {
+      if (typeof title !== "string" || title.trim() === "" || title.length > 220) {
         return fail(`"${name}" has a task with no usable title`);
       }
-      if (typeof day !== "number" || !Number.isInteger(day) || day < 1 || day > days) {
-        return fail(`"${name}" has a task on day ${String(day)}, but the fest has ${days} day(s)`);
+      if (typeof day !== "number" || !Number.isInteger(day) || day < 0 || day > days + 1) {
+        return fail(`"${name}" has a task on day ${String(day)}, but the plan runs from 0 (preparation) to ${days + 1} (wrap-up)`);
       }
       daysUsed.add(day);
       cleanTasks.push({ title: title.trim(), day });
     }
+    if (!cleanTasks.some((t) => t.day === 0)) return fail(`"${name}" has no preparation task`);
+    if (!cleanTasks.some((t) => t.day >= 1 && t.day <= days)) return fail(`"${name}" has no task on an event day`);
+    cleanTasks.sort((a, b) => a.day - b.day); // stable, so the AI's order is kept within a day
     checked.push({ name, tasks: cleanTasks });
   }
 

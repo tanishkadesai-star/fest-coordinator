@@ -21,11 +21,15 @@ function ago(iso: string) {
 
 export default function BoardScreen({
   session,
+  department,
   onBack,
 }: {
   session: Session;
+  department: string; // the board being shown: your own, or any department if you are the organiser
   onBack: () => void;
 }) {
+  // Only people in a department can take its requests. The organiser oversees and can send requests.
+  const canTake = !session.isOrganiser && session.department === department;
   const [requests, setRequests] = useState<FestRequest[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [lastOk, setLastOk] = useState<Date | null>(null);
@@ -33,7 +37,7 @@ export default function BoardScreen({
   const [tab, setTab] = useState<"open" | "on">("open");
 
   const [sheet, setSheet] = useState(false);
-  const [target, setTarget] = useState(session.department);
+  const [target, setTarget] = useState(department);
   const [text, setText] = useState("");
   const [where, setWhere] = useState("");
   const [sheetErr, setSheetErr] = useState("");
@@ -56,7 +60,7 @@ export default function BoardScreen({
     if (busy.current) return;
     busy.current = true;
     try {
-      const qs = new URLSearchParams({ code: session.festCode, department: session.department });
+      const qs = new URLSearchParams({ code: session.festCode, department });
       const res = await fetch(`/api/requests?${qs}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -69,7 +73,7 @@ export default function BoardScreen({
     } finally {
       busy.current = false;
     }
-  }, [session.festCode, session.department]);
+  }, [session.festCode, department]);
 
   useEffect(() => {
     const first = setTimeout(refresh, 0);
@@ -119,11 +123,11 @@ export default function BoardScreen({
   const list = tab === "open" ? open : taken;
   const empty =
     tab === "open"
-      ? ["Nothing open", `New requests for ${session.department} land here.`]
+      ? ["Nothing open", `New requests for ${department} land here.`]
       : ["Nobody is on anything", "Claimed requests show up here."];
 
   return (
-    <div className="board" style={colourVar(session.department)}>
+    <div className="board" style={colourVar(department)}>
       <div className="board-bar">
         <button className="pill small" onClick={onBack}>← Overview</button>
         <span className="mono" style={{ fontSize: 12 }}>
@@ -140,9 +144,9 @@ export default function BoardScreen({
       <div className="board-body">
         <div className="stack" style={{ gap: 4 }}>
           <span className="mono" style={{ fontSize: 12, letterSpacing: "0.06em" }}>
-            YOUR DEPARTMENT · {session.name.toUpperCase()}
+            {canTake ? `YOUR DEPARTMENT · ${session.name.toUpperCase()}` : `VIEWING · ${session.name.toUpperCase()}`}
           </span>
-          <h1 className="display dept-title" style={{ margin: 0 }}>{session.department}</h1>
+          <h1 className="display dept-title" style={{ margin: 0 }}>{department}</h1>
         </div>
 
         <div className="tabs" role="tablist">
@@ -179,10 +183,12 @@ export default function BoardScreen({
               <span className="req-meta">From {r.created_by} · {ago(r.created_at)}</span>
               {r.claimed_by ? (
                 <span className="owner">{mine ? "You're on it" : `${r.claimed_by} is on it`}</span>
-              ) : (
+              ) : canTake ? (
                 <button className="btn colour" onClick={() => claim(r.id)} disabled={claiming === r.id}>
                   {claiming === r.id ? "Saving…" : "I'm on it"}
                 </button>
+              ) : (
+                <span className="req-meta">Open · {department} members can take this</span>
               )}
               {claimErr?.id === r.id && <div className="note err" role="alert">{claimErr.text}</div>}
             </div>
@@ -194,7 +200,7 @@ export default function BoardScreen({
         <button
           className="btn colour"
           onClick={() => {
-            setTarget(session.department);
+            setTarget(department);
             setSheetErr("");
             setSheet(true);
           }}

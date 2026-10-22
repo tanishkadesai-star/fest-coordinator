@@ -2,24 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { requestPlan } from "@/lib/api";
-import { colourVar } from "@/lib/colours";
 import type { Plan } from "@/lib/types";
-import {
-  DEPARTMENTS,
-  FEST_TYPES,
-  validateDepartment,
-  validateName,
-  validatePlanInput,
-  type PlanInput,
-} from "@/lib/validate";
+import { FEST_TYPES, MAX_DETAILS_LENGTH, validateName, validatePlanInput, type PlanInput } from "@/lib/validate";
 
 export type DescribeForm = {
   festType: string;
   days: number;
   attendance: string;
   highlights: string;
+  details: string;
   name: string;
-  department: string;
 };
 
 export const emptyForm: DescribeForm = {
@@ -27,8 +19,8 @@ export const emptyForm: DescribeForm = {
   days: 2,
   attendance: "",
   highlights: "",
+  details: "",
   name: "",
-  department: DEPARTMENTS[0],
 };
 
 export default function DescribeScreen({
@@ -58,9 +50,10 @@ export default function DescribeScreen({
       days: form.days,
       attendance: Number(form.attendance),
       highlights: form.highlights,
+      details: form.details,
     };
     // Cheap checks first: no AI call, no cost, until the form makes sense.
-    const problem = validatePlanInput(input) ?? validateName(form.name) ?? validateDepartment(form.department);
+    const problem = validatePlanInput(input) ?? validateName(form.name);
     if (problem) return setError(problem);
     setError(null);
     setLoading(true);
@@ -78,7 +71,7 @@ export default function DescribeScreen({
       </div>
       <div className="stack">
         <h1 className="display title" style={{ margin: 0 }}>Describe the fest</h1>
-        <p className="sub">You&apos;ll get a draft task list for all 8 departments.</p>
+        <p className="sub">The more you tell it, the more exact every department&apos;s tasks will be.</p>
       </div>
       <div className="stack">
         <span className="label">Type</span>
@@ -131,30 +124,28 @@ export default function DescribeScreen({
         <span className="hint">Name the events. The draft is built around them.</span>
       </div>
       <div className="stack">
+        <label className="label" htmlFor="details">Extra details (optional)</label>
+        <textarea
+          id="details"
+          className="area"
+          style={{ minHeight: 100 }}
+          maxLength={MAX_DETAILS_LENGTH}
+          placeholder="Chief guest arrives day 1 morning, 3 judges, guests stay at a hotel 2 km away, venues: Auditorium and Seminar Halls A to C…"
+          value={form.details}
+          onChange={(e) => set({ details: e.target.value })}
+        />
+        <span className="hint">Guests, judges, venues, timings. Tasks use these, and never invent names.</span>
+      </div>
+      <div className="stack">
         <label className="label" htmlFor="organiser">Your name</label>
         <input
           id="organiser"
           className="input"
           maxLength={30}
-          placeholder="You'll be the organiser"
+          placeholder="You'll oversee every department"
           value={form.name}
           onChange={(e) => set({ name: e.target.value })}
         />
-      </div>
-      <div className="stack">
-        <span className="label">Your department</span>
-        <div className="chips">
-          {DEPARTMENTS.map((d) => (
-            <button
-              key={d}
-              className={`chip tight${form.department === d ? " on" : ""}`}
-              style={colourVar(d)}
-              onClick={() => set({ department: d })}
-            >
-              {d}
-            </button>
-          ))}
-        </div>
       </div>
       {error && <div className="note err" role="alert" ref={errorRef}>{error}</div>}
       <button className="btn spacer" onClick={draft} disabled={loading}>

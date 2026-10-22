@@ -1,5 +1,5 @@
 import { db, failure, festExists } from "@/lib/supabase";
-import { validateDepartment, validateName, validatePlan, validatePlanInput } from "@/lib/validate";
+import { ORGANISER_DEPT, validateName, validatePlan, validatePlanInput } from "@/lib/validate";
 
 // No 0/O/1/I so codes are easy to read out over a walkie-talkie.
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -12,7 +12,7 @@ function newCode() {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  const problem = validateName(body.name) ?? validateDepartment(body.department);
+  const problem = validateName(body.name); // the organiser belongs to no department
   if (problem) return Response.json({ error: problem }, { status: 400 });
 
   // The plan is optional, but if one is sent it is checked again here, never trusted as-is.
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
       days: Number(body.planInput?.days),
       attendance: Number(body.planInput?.attendance),
       highlights: String(body.planInput?.highlights ?? ""),
+      details: String(body.planInput?.details ?? ""),
     };
     const inputProblem = validatePlanInput(planInput);
     const checked = inputProblem ? null : validatePlan(body.plan, planInput.days);
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
     const { error } = await db().from("members").insert({
       fest_code: code,
       name: body.name.trim(),
-      department: body.department,
+      department: ORGANISER_DEPT,
       is_organiser: true,
     });
     if (error) {

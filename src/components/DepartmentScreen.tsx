@@ -3,26 +3,30 @@
 import { useState } from "react";
 import { postJson } from "@/lib/api";
 import { colourVar } from "@/lib/colours";
-import type { OverviewDept, Session } from "@/lib/types";
+import { dayTag, phaseNames } from "@/lib/overview";
+import type { Overview, OverviewDept, Session } from "@/lib/types";
 
 export default function DepartmentScreen({
   session,
+  overview,
   dept,
   stale,
   refresh,
   onBack,
-  onMyBoard,
+  onBoard,
 }: {
   session: Session;
+  overview: Overview;
   dept: OverviewDept;
   stale: boolean;
   refresh: () => void;
   onBack: () => void;
-  onMyBoard: () => void;
+  onBoard: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<{ key: string; text: string } | null>(null);
-  const mine = session.department === dept.name;
+  // Only people in a department take its tasks. The organiser oversees every department.
+  const mine = !session.isOrganiser && session.department === dept.name;
 
   async function act(key: string, action: "claim" | "done") {
     setBusy(key);
@@ -35,6 +39,12 @@ export default function DepartmentScreen({
     await refresh();
     setBusy(null);
   }
+
+  // Tasks grouped by phase: Preparation, Day 1.., Wrap-up. The phase happening now is marked.
+  const phases = phaseNames(overview.days);
+  const groups = phases
+    .map((label, p) => ({ label, p, tasks: dept.tasks.filter((t) => t.day === p) }))
+    .filter((g) => g.tasks.length);
 
   return (
     <div className="screen" style={colourVar(dept.name)}>
@@ -68,13 +78,13 @@ export default function DepartmentScreen({
         <div className="note">No plan was saved for this fest, so there are no tasks here.</div>
       )}
 
-      {dept.tasks.length > 0 && (
-        <section className="stack" style={{ gap: 10 }}>
-          <h2 className="display section">Tasks</h2>
-          {dept.tasks.map((t) => (
+      {groups.map((g) => (
+        <section className="stack" style={{ gap: 10 }} key={g.label}>
+          <h2 className={`phase-head${g.p === overview.phase ? " now" : ""}`}>{g.label}</h2>
+          {g.tasks.map((t) => (
             <div className="req" key={t.key}>
               <div className="task-line">
-                <span className="daytag">Day {t.day}</span>
+                <span className="daytag">{dayTag(t.day, overview.days)}</span>
                 <span className="req-text">{t.title}</span>
               </div>
               {t.done ? (
@@ -93,29 +103,26 @@ export default function DepartmentScreen({
                   {busy === t.key ? "Saving…" : "I'm on it"}
                 </button>
               ) : (
-                <span className="req-meta">Open · {dept.name} members can take this</span>
+                <span className="req-meta">Not taken yet · {dept.name} members can take this</span>
               )}
               {error?.key === t.key && <div className="note err" role="alert">{error.text}</div>}
             </div>
           ))}
         </section>
-      )}
+      ))}
 
       <section className="stack" style={{ gap: 10 }}>
         <h2 className="display section">Who to contact</h2>
         {dept.members.length === 0 && <p className="sub">Nobody has joined {dept.name} yet.</p>}
         {dept.members.map((m) => (
           <div className="req" key={m.name}>
-            <div className="row">
-              <span className="req-text">{m.name}</span>
-              {m.isOrganiser && <span className="mono" style={{ fontSize: 11, color: "var(--c)" }}>ORGANISER</span>}
-            </div>
+            <span className="req-text">{m.name}</span>
             {m.tasks.length === 0 ? (
               <span className="req-meta">No tasks yet</span>
             ) : (
               m.tasks.map((t, i) => (
                 <div className="task-line" key={i}>
-                  <span className="daytag">{t.kind === "request" ? "Request" : `Day ${t.day}`}</span>
+                  <span className="daytag">{dayTag(t.day, overview.days)}</span>
                   <span className="roster-task">
                     {t.title}
                     {t.done && " ✓"}
@@ -127,8 +134,10 @@ export default function DepartmentScreen({
         ))}
       </section>
 
-      {mine && (
-        <button className="btn colour" onClick={onMyBoard}>Open requests board</button>
+      {(mine || session.isOrganiser) && (
+        <button className="btn colour" onClick={onBoard}>
+          {mine ? "Open requests board" : `View ${dept.name} requests`}
+        </button>
       )}
     </div>
   );

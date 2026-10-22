@@ -28,6 +28,8 @@ export type OverviewDept = {
 };
 export type Overview = {
   hasPlan: boolean;
+  organisers: string[]; // the organiser belongs to no department
+
   days: number | null;
   phase: number;
   phaseLabel: string;
@@ -36,6 +38,15 @@ export type Overview = {
   totalTasks: number;
   percent: number | null;
   departments: OverviewDept[];
+};
+
+// The AI's written team report. The numbers it talks about are computed in plain code.
+export type TeamReport = {
+  summary: string;
+  departments: { name: string; note: string }[];
+  caveats: string[];
+  generatedAt: string;
+  phaseLabel: string;
 };
 
 // Who you are on this phone once you have started or joined a fest.

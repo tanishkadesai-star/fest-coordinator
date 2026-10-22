@@ -3,19 +3,20 @@
 import { useState } from "react";
 import BoardScreen from "@/components/BoardScreen";
 import CodeScreen from "@/components/CodeScreen";
+import DepartmentScreen from "@/components/DepartmentScreen";
 import DescribeScreen, { emptyForm, type DescribeForm } from "@/components/DescribeScreen";
 import DraftScreen from "@/components/DraftScreen";
 import JoinScreen from "@/components/JoinScreen";
-import DepartmentScreen from "@/components/DepartmentScreen";
 import OverviewScreen from "@/components/OverviewScreen";
+import ReportScreen from "@/components/ReportScreen";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import { postJson, requestPlan } from "@/lib/api";
 import { clearSession, saveSession, useStoredSession } from "@/lib/session";
 import type { Plan, Session } from "@/lib/types";
 import { useOverview } from "@/lib/useOverview";
-import type { PlanInput } from "@/lib/validate";
+import { ORGANISER_DEPT, type PlanInput } from "@/lib/validate";
 
-type Screen = "welcome" | "join" | "describe" | "draft" | "code" | "overview" | "dept" | "board";
+type Screen = "welcome" | "join" | "describe" | "draft" | "code" | "overview" | "dept" | "board" | "report";
 type Draft = { plan: Plan; input: PlanInput };
 
 export default function Home() {
@@ -25,8 +26,8 @@ export default function Home() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState<"redraft" | "use" | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
-
   const [deptName, setDeptName] = useState<string | null>(null);
+  const [boardDept, setBoardDept] = useState<string | null>(null);
 
   // Someone who is already in a fest goes straight back to the overview.
   const view: Screen = session && (screen === "welcome" || screen === "join") ? "overview" : screen;
@@ -45,22 +46,17 @@ export default function Home() {
   }
 
   // "Use this plan" is when the fest is actually created, the plan is saved for
-  // everyone to read, and the code is issued.
+  // everyone to read, and the code is issued. The organiser belongs to no department.
   async function useThisPlan() {
     if (!draft) return;
     setBusy("use");
     setDraftError(null);
-    const res = await postJson("/api/fest", {
-      name: form.name,
-      department: form.department,
-      plan: draft.plan,
-      planInput: draft.input,
-    });
+    const res = await postJson("/api/fest", { name: form.name, plan: draft.plan, planInput: draft.input });
     setBusy(null);
     if (!res.ok || !res.data.code) {
       return setDraftError(res.data.error ?? "Couldn't start the fest. Please try again.");
     }
-    saveSession({ festCode: res.data.code, name: form.name.trim(), department: form.department, isOrganiser: true });
+    saveSession({ festCode: res.data.code, name: form.name.trim(), department: ORGANISER_DEPT, isOrganiser: true });
     setScreen("code");
   }
 
@@ -73,6 +69,11 @@ export default function Home() {
     clearSession();
     setScreen("welcome");
   }
+
+  const openBoard = (department: string) => {
+    setBoardDept(department);
+    setScreen("board");
+  };
 
   return (
     <main className="app">
@@ -129,7 +130,8 @@ export default function Home() {
             setDeptName(name);
             setScreen("dept");
           }}
-          onMyBoard={() => setScreen("board")}
+          onMyBoard={() => openBoard(session.department)}
+          onReport={() => setScreen("report")}
           onLeave={leave}
         />
       )}
@@ -137,15 +139,24 @@ export default function Home() {
       {view === "dept" && session && overview.data && (
         <DepartmentScreen
           session={session}
+          overview={overview.data}
           dept={overview.data.departments.find((d) => d.name === deptName) ?? overview.data.departments[0]}
           stale={overview.stale}
           refresh={overview.refresh}
           onBack={() => setScreen("overview")}
-          onMyBoard={() => setScreen("board")}
+          onBoard={() => openBoard(deptName ?? session.department)}
         />
       )}
 
-      {view === "board" && session && <BoardScreen session={session} onBack={() => setScreen("overview")} />}
+      {view === "board" && session && (
+        <BoardScreen
+          session={session}
+          department={boardDept ?? (session.isOrganiser ? "Logistics" : session.department)}
+          onBack={() => setScreen("overview")}
+        />
+      )}
+
+      {view === "report" && session?.isOrganiser && <ReportScreen session={session} onBack={() => setScreen("overview")} />}
     </main>
   );
 }

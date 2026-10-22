@@ -14,7 +14,15 @@ export function phaseLabel(phase: number, days: number | null): string {
   return /^Day \d+$/.test(label) ? `${label} of ${days}` : label;
 }
 
-export const taskKey = (deptIndex: number, taskIndex: number) => `${deptIndex}-${taskIndex}`;
+// A task's "day" is 0 for Preparation, 1..days for event days, days + 1 for Wrap-up.
+export function dayTag(day: number | null, days: number | null): string {
+  if (day === null) return "Request";
+  if (day === 0) return "Prep";
+  if (days && day === days + 1) return "Wrap-up";
+  return `Day ${day}`;
+}
+
+export const taskKey =(deptIndex: number, taskIndex: number) => `${deptIndex}-${taskIndex}`;
 
 export function parseTaskKey(key: string): { dept: number; task: number } | null {
   const m = /^(\d+)-(\d+)$/.exec(key);
@@ -83,6 +91,7 @@ export function computeOverview(args: {
   const phase = phases.length ? Math.min(Math.max(args.phase, 0), phases.length - 1) : 0;
   return {
     hasPlan: !!plan,
+    organisers: [...new Set(members.filter((m) => m.is_organiser).map((m) => m.name))],
     days,
     phase,
     phaseLabel: phaseLabel(phase, days),

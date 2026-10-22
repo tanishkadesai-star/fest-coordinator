@@ -26,6 +26,7 @@ create table if not exists fests (
   plan jsonb not null,
   plan_input jsonb not null,
   phase int not null default 0,  -- 0 = preparation, 1..days = that day, days + 1 = wrap-up
+  report jsonb,                  -- the last AI team report the organiser generated
   created_at timestamptz not null default now()
 );
 

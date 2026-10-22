@@ -31,6 +31,18 @@ export async function festExists(code: string): Promise<boolean> {
   return (data?.length ?? 0) > 0;
 }
 
+export async function isOrganiser(code: string, name: string): Promise<boolean> {
+  const { data, error } = await db()
+    .from("members")
+    .select("id")
+    .eq("fest_code", code)
+    .eq("name", name.trim())
+    .eq("is_organiser", true)
+    .limit(1);
+  if (error) throw error;
+  return (data?.length ?? 0) > 0;
+}
+
 // Shared by the API routes: turns any failure into a clear JSON message.
 export function failure(e: unknown): Response {
   if (e instanceof NotConfiguredError) {

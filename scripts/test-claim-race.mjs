@@ -13,12 +13,14 @@ async function post(path, body) {
   return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
-const fest = await post("/api/fest", { name: "RaceTest", department: "Logistics" });
+const fest = await post("/api/fest", { name: "RaceTest" });
 if (!fest.data.code) {
   console.error("Could not start a test fest:", fest.data.error ?? fest.status);
   process.exit(1);
 }
 const code = fest.data.code;
+// Only people in the request's department can take it, so both claimers join Logistics first.
+for (const name of ["Asha", "Ravi"]) await post("/api/join", { code, name, department: "Logistics" });
 
 let bad = 0;
 for (let round = 1; round <= 20; round++) {

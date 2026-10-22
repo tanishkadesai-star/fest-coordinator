@@ -13,6 +13,7 @@ export default function OverviewScreen({
   refresh,
   onOpenDept,
   onMyBoard,
+  onReport,
   onLeave,
 }: {
   session: Session;
@@ -22,6 +23,7 @@ export default function OverviewScreen({
   refresh: () => void;
   onOpenDept: (name: string) => void;
   onMyBoard: () => void;
+  onReport: () => void;
   onLeave: () => void;
 }) {
   const [phaseError, setPhaseError] = useState<string | null>(null);
@@ -43,10 +45,22 @@ export default function OverviewScreen({
         <span className="mono" style={{ fontSize: 12 }}>
           {session.festCode} · {stale ? <span style={{ color: "var(--warn)" }}>OFFLINE</span> : "LIVE"}
         </span>
-        <button className="pill small" onClick={onMyBoard}>My board</button>
+        {session.isOrganiser ? (
+          <button className="pill small" onClick={onReport}>Team report</button>
+        ) : (
+          <button className="pill small" onClick={onMyBoard}>My board</button>
+        )}
       </div>
 
-      <h1 className="display title" style={{ margin: 0 }}>Overview</h1>
+      <div className="stack" style={{ gap: 6 }}>
+        <h1 className="display title" style={{ margin: 0 }}>Overview</h1>
+        {data && data.organisers.length > 0 && (
+          <span className="mono" style={{ fontSize: 12 }}>
+            ORGANISER · {data.organisers.join(", ").toUpperCase()}
+            {session.isOrganiser ? " (YOU)" : ""}
+          </span>
+        )}
+      </div>
 
       {stale && (
         <div className="note warn" role="status">
@@ -108,7 +122,7 @@ export default function OverviewScreen({
               <button key={d.name} className="tile" style={colourVar(d.name)} onClick={() => onOpenDept(d.name)}>
                 <span className="tile-name">
                   {d.name}
-                  {d.name === session.department && <em> · yours</em>}
+                  {!session.isOrganiser && d.name === session.department && <em> · yours</em>}
                 </span>
                 <span className="display tile-pct">{d.percent === null ? "–" : `${d.percent}%`}</span>
                 <span className="tile-sub">
