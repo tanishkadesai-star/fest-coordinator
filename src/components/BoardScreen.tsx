@@ -4,7 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { postJson } from "@/lib/api";
 import { colourVar } from "@/lib/colours";
 import type { FestRequest, Session } from "@/lib/types";
-import { DEPARTMENTS, MAX_REQUEST_LENGTH, validateRequestText } from "@/lib/validate";
+import {
+  DEPARTMENTS,
+  MAX_LOCATION_LENGTH,
+  MAX_REQUEST_LENGTH,
+  validateLocation,
+  validateRequestText,
+} from "@/lib/validate";
 
 const POLL_MS = 2000;
 
@@ -15,12 +21,10 @@ function ago(iso: string) {
 
 export default function BoardScreen({
   session,
-  onLeave,
-  onShowPlan,
+  onBack,
 }: {
   session: Session;
-  onLeave: () => void;
-  onShowPlan?: () => void;
+  onBack: () => void;
 }) {
   const [requests, setRequests] = useState<FestRequest[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -31,6 +35,7 @@ export default function BoardScreen({
   const [sheet, setSheet] = useState(false);
   const [target, setTarget] = useState(session.department);
   const [text, setText] = useState("");
+  const [where, setWhere] = useState("");
   const [sheetErr, setSheetErr] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -77,7 +82,7 @@ export default function BoardScreen({
   }, [refresh]);
 
   async function send() {
-    const problem = validateRequestText(text);
+    const problem = validateRequestText(text) ?? validateLocation(where);
     if (problem) return setSheetErr(problem);
     setSending(true);
     setSheetErr("");
@@ -86,11 +91,13 @@ export default function BoardScreen({
       name: session.name,
       department: target,
       text,
+      location: where,
     });
     setSending(false);
     if (!res.ok) return setSheetErr(res.data.error ?? "Couldn't send. Please try again.");
     setSheet(false);
     setText("");
+    setWhere("");
     say(`Sent to ${target}.`);
     refresh();
   }
@@ -118,7 +125,7 @@ export default function BoardScreen({
   return (
     <div className="board" style={colourVar(session.department)}>
       <div className="board-bar">
-        <button className="pill small" onClick={onLeave}>Leave</button>
+        <button className="pill small" onClick={onBack}>← Overview</button>
         <span className="mono" style={{ fontSize: 12 }}>
           {session.festCode} ·{" "}
           {stale ? (
@@ -127,11 +134,7 @@ export default function BoardScreen({
             "LIVE"
           )}
         </span>
-        {onShowPlan ? (
-          <button className="pill small" onClick={onShowPlan}>Plan</button>
-        ) : (
-          <span style={{ width: 62 }} />
-        )}
+        <span style={{ width: 86 }} />
       </div>
 
       <div className="board-body">
@@ -172,6 +175,7 @@ export default function BoardScreen({
           return (
             <div className="req" key={r.id}>
               <span className="req-text">{r.text}</span>
+              {r.location && <span className="req-where">Where: {r.location}</span>}
               <span className="req-meta">From {r.created_by} · {ago(r.created_at)}</span>
               {r.claimed_by ? (
                 <span className="owner">{mine ? "You're on it" : `${r.claimed_by} is on it`}</span>
@@ -231,6 +235,17 @@ export default function BoardScreen({
                 value={text}
                 onChange={(e) => {
                   setText(e.target.value);
+                  setSheetErr("");
+                }}
+              />
+              <input
+                className="input where"
+                maxLength={MAX_LOCATION_LENGTH}
+                placeholder="Where? e.g. Front row, seat 3 (optional)"
+                aria-label="Location"
+                value={where}
+                onChange={(e) => {
+                  setWhere(e.target.value);
                   setSheetErr("");
                 }}
               />

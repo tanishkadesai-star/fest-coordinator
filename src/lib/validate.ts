@@ -16,6 +16,7 @@ export const DEPARTMENTS = [
 export const FEST_TYPES = ["Cultural", "Technical", "Sports", "Mixed / General"];
 
 export const MAX_REQUEST_LENGTH = 200;
+export const MAX_LOCATION_LENGTH = 80;
 
 export type PlanInput = {
   festType: string;
@@ -99,6 +100,16 @@ export function validateName(name: unknown): string | null {
 
 export function validateDepartment(dep: unknown): string | null {
   if (typeof dep !== "string" || !DEPARTMENTS.includes(dep)) return "Choose a department.";
+  return null;
+}
+
+// The location is optional, so empty is fine.
+export function validateLocation(location: unknown): string | null {
+  if (location === undefined || location === null || location === "") return null;
+  if (typeof location !== "string") return "The location must be text.";
+  if (location.trim().length > MAX_LOCATION_LENGTH) {
+    return `Keep the location under ${MAX_LOCATION_LENGTH} characters.`;
+  }
   return null;
 }
 

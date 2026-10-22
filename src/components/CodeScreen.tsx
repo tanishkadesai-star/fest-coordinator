@@ -49,7 +49,7 @@ export default function CodeScreen({ code, onOpen }: { code: string; onOpen: () 
         <button className="pill plain" onClick={share}>Share…</button>
       </div>
       {note && note !== "Copied" && <div className="note warn" role="status">{note}</div>}
-      <button className="btn spacer" onClick={onOpen}>Open the board</button>
+      <button className="btn spacer" onClick={onOpen}>Open the overview</button>
     </div>
   );
 }

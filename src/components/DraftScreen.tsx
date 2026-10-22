@@ -13,6 +13,7 @@ export default function DraftScreen({
   onBack,
   step,
   footer,
+  focusDept,
 }: {
   plan: Plan;
   input: PlanInput;
@@ -20,12 +21,14 @@ export default function DraftScreen({
   onBack: () => void;
   step?: string;
   footer?: React.ReactNode;
+  focusDept?: string; // when set, this department's tasks are listed first
 }) {
   const [day, setDay] = useState(0); // 0 means all days
   const days = Array.from({ length: input.days }, (_, i) => i + 1);
   const shown = plan.departments
     .map((d) => ({ ...d, tasks: d.tasks.filter((t) => !day || t.day === day) }))
-    .filter((d) => d.tasks.length);
+    .filter((d) => d.tasks.length)
+    .sort((a, b) => Number(b.name === focusDept) - Number(a.name === focusDept));
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -35,7 +38,7 @@ export default function DraftScreen({
           {step && <span className="mono">{step}</span>}
         </div>
         <div className="stack" style={{ gap: 6 }}>
-          <h1 className="display title" style={{ margin: 0 }}>Your draft plan</h1>
+          <h1 className="display title" style={{ margin: 0 }}>{focusDept ? "The fest plan" : "Your draft plan"}</h1>
           <span className="mono" style={{ fontWeight: 400, textTransform: "uppercase" }}>
             {input.festType} · {input.days} day{input.days > 1 ? "s" : ""} · {input.attendance} people
           </span>
@@ -63,6 +66,9 @@ export default function DraftScreen({
             <div className="dept-name">
               <i />
               {d.name}
+              {d.name === focusDept && (
+                <span className="mono" style={{ marginLeft: "auto", fontSize: 11, color: "var(--c)" }}>YOUR TASKS</span>
+              )}
             </div>
             {d.tasks.map((t, i) => (
               <div className="task" key={i}>

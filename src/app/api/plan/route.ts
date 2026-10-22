@@ -34,6 +34,8 @@ const TOOLS = [
                 name: { type: "string", enum: DEPARTMENTS },
                 tasks: {
                   type: "array",
+                  minItems: 3,
+                  maxItems: 5,
                   items: {
                     type: "object",
                     properties: { title: { type: "string" }, day: { type: "integer" } },

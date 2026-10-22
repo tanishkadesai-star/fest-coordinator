@@ -1,5 +1,5 @@
 import { db, failure, festExists } from "@/lib/supabase";
-import { validateDepartment, validateName, validateRequestText } from "@/lib/validate";
+import { validateDepartment, validateLocation, validateName, validateRequestText } from "@/lib/validate";
 
 // Polled every 2 seconds by every phone.
 export async function GET(request: Request) {
@@ -31,7 +31,8 @@ export async function POST(request: Request) {
     (code ? null : "Missing fest code.") ??
     validateName(body.name) ??
     validateDepartment(body.department) ??
-    validateRequestText(body.text);
+    validateRequestText(body.text) ??
+    validateLocation(body.location);
   if (problem) return Response.json({ error: problem }, { status: 400 });
 
   try {
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
         fest_code: code,
         department: body.department,
         text: body.text.trim(),
+        location: typeof body.location === "string" && body.location.trim() ? body.location.trim() : null,
         created_by: body.name.trim(),
       })
       .select()
