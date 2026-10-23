@@ -1,4 +1,5 @@
 import { newToken } from "@/lib/codes";
+import { clientIp, LOGIN_RULE, recordFailure, secondsBlocked, tooManyTries } from "@/lib/rateLimit";
 import { db, failure } from "@/lib/supabase";
 import { ORGANISER_DEPT, validateName } from "@/lib/validate";
 
@@ -9,15 +10,23 @@ export async function POST(request: Request) {
   const problem = (accessCode ? null : "Enter your access code.") ?? validateName(body.name);
   if (problem) return Response.json({ error: problem }, { status: 400 });
   const name = body.name.trim();
+  const ip = clientIp(request);
 
   try {
+    // Too many wrong codes from this address? Pause logging in, even for a right code.
+    const blocked = await secondsBlocked("login", ip);
+    if (blocked > 0) return tooManyTries(blocked);
+
     const { data: found, error } = await db()
       .from("access_codes")
       .select("fest_code, role, department")
       .eq("code", accessCode)
       .maybeSingle();
     if (error) throw error;
-    if (!found) return Response.json({ error: "Code not found. Check it with your organiser." }, { status: 404 });
+    if (!found) {
+      await recordFailure("login", ip, LOGIN_RULE);
+      return Response.json({ error: "Code not found. Check it with your organiser." }, { status: 404 });
+    }
 
     const isOrganiser = found.role === "organiser";
     const department = isOrganiser ? ORGANISER_DEPT : (found.department as string);

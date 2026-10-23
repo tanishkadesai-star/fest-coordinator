@@ -1,4 +1,5 @@
 import { newToken } from "@/lib/codes";
+import { clientIp, JOIN_RULE, recordFailure, secondsBlocked, tooManyTries } from "@/lib/rateLimit";
 import { db, failure, festExists } from "@/lib/supabase";
 import { validateDepartment, validateName } from "@/lib/validate";
 
@@ -10,8 +11,14 @@ export async function POST(request: Request) {
     (code ? null : "Enter the fest code.") ?? validateName(body.name) ?? validateDepartment(body.department);
   if (problem) return Response.json({ error: problem }, { status: 400 });
 
+  const ip = clientIp(request);
+
   try {
+    const blocked = await secondsBlocked("join", ip);
+    if (blocked > 0) return tooManyTries(blocked);
+
     if (!(await festExists(code))) {
+      await recordFailure("join", ip, JOIN_RULE);
       return Response.json({ error: "Code not found. Check it with your organiser." }, { status: 404 });
     }
     const name = body.name.trim();

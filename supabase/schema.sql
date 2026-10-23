@@ -59,6 +59,14 @@ create table if not exists access_codes (
 );
 create index if not exists access_codes_fest_idx on access_codes (fest_code);
 
+-- Wrong-code attempts, so nobody can guess a head or organiser code by trying many.
+create table if not exists login_attempts (
+  key text primary key,            -- "<kind>:<visitor address>"
+  failures int not null default 0,
+  window_started timestamptz not null default now(),
+  blocked_until timestamptz
+);
+
 -- Files the organiser and department heads publish (the files themselves live in Storage).
 create table if not exists published_files (
   id uuid primary key default gen_random_uuid(),
@@ -100,3 +108,4 @@ alter table fests enable row level security;
 alter table task_status enable row level security;
 alter table access_codes enable row level security;
 alter table published_files enable row level security;
+alter table login_attempts enable row level security;
