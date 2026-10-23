@@ -5,6 +5,7 @@ import { postJson } from "@/lib/api";
 import { colourVar } from "@/lib/colours";
 import type { TeamStats } from "@/lib/report";
 import type { Session, TeamReport } from "@/lib/types";
+import WorkloadTable from "./WorkloadTable";
 
 // The organiser's team report: live workload numbers (worked out by the app) and an AI-written summary.
 export default function ReportScreen({ session, onBack }: { session: Session; onBack: () => void }) {
@@ -15,9 +16,10 @@ export default function ReportScreen({ session, onBack }: { session: Session; on
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/fest/${session.festCode}/report?name=${encodeURIComponent(session.name)}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/fest/${session.festCode}/report?name=${encodeURIComponent(session.name)}&token=${encodeURIComponent(session.token)}`,
+        { cache: "no-store" }
+      );
       const json = await res.json().catch(() => ({}));
       if (!res.ok) return setError(json.error ?? "Couldn't load the report. Try again.");
       setStats(json.stats);
@@ -26,7 +28,7 @@ export default function ReportScreen({ session, onBack }: { session: Session; on
     } catch {
       setError("Couldn't load the report. Check your connection and try again.");
     }
-  }, [session.festCode, session.name]);
+  }, [session.festCode, session.name, session.token]);
 
   useEffect(() => {
     const first = setTimeout(load, 0);
@@ -36,7 +38,7 @@ export default function ReportScreen({ session, onBack }: { session: Session; on
   async function generate() {
     setWriting(true);
     setError(null);
-    const res = await postJson(`/api/fest/${session.festCode}/report`, { name: session.name });
+    const res = await postJson(`/api/fest/${session.festCode}/report`, { name: session.name, token: session.token });
     setWriting(false);
     if (!res.ok) return setError(res.data.error ?? "Couldn't write the report. Try again.");
     setStats(res.data.stats);
@@ -85,32 +87,7 @@ export default function ReportScreen({ session, onBack }: { session: Session; on
                     <span className="owner" style={{ fontSize: 17 }}>{d.name}</span>
                     <span className="hint">{d.untaken} untaken · {d.percentDone ?? 0}% done</span>
                   </div>
-                  {d.members.length === 0 ? (
-                    <span className="req-meta">Nobody has joined this department.</span>
-                  ) : (
-                    <div className="table">
-                      <div className="person-row head">
-                        <span>Person</span>
-                        <span>Done</span>
-                        <span>Doing</span>
-                        <span>Req.</span>
-                      </div>
-                      {d.members.map((m) => (
-                        <div key={m.name}>
-                          <div className="person-row">
-                            <span className="person-name">{m.name}</span>
-                            <span>{m.planDone}</span>
-                            <span>{m.planInProgress}</span>
-                            <span>{m.requestsTaken}</span>
-                          </div>
-                          {m.belowTeammates && <span className="flag">BELOW TEAMMATES</span>}
-                          {!m.belowTeammates && m.completed === 0 && m.planInProgress === 0 && (
-                            <span className="flag">NO WORK RECORDED YET</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <WorkloadTable dept={d} />
                 </div>
               ))}
             <p className="hint">Done = plan tasks finished · Doing = taken, not finished · Req. = live requests taken</p>

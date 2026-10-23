@@ -7,7 +7,9 @@ import DepartmentScreen from "@/components/DepartmentScreen";
 import DescribeScreen, { emptyForm, type DescribeForm } from "@/components/DescribeScreen";
 import DraftScreen from "@/components/DraftScreen";
 import JoinScreen from "@/components/JoinScreen";
+import AccessScreen from "@/components/AccessScreen";
 import OverviewScreen from "@/components/OverviewScreen";
+import PublishedScreen from "@/components/PublishedScreen";
 import ReportScreen from "@/components/ReportScreen";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import { postJson, requestPlan } from "@/lib/api";
@@ -16,7 +18,18 @@ import type { Plan, Session } from "@/lib/types";
 import { useOverview } from "@/lib/useOverview";
 import { ORGANISER_DEPT, type PlanInput } from "@/lib/validate";
 
-type Screen = "welcome" | "join" | "describe" | "draft" | "code" | "overview" | "dept" | "board" | "report";
+type Screen =
+  | "welcome"
+  | "join"
+  | "describe"
+  | "draft"
+  | "code"
+  | "overview"
+  | "dept"
+  | "board"
+  | "report"
+  | "published"
+  | "access";
 type Draft = { plan: Plan; input: PlanInput };
 
 export default function Home() {
@@ -28,6 +41,7 @@ export default function Home() {
   const [draftError, setDraftError] = useState<string | null>(null);
   const [deptName, setDeptName] = useState<string | null>(null);
   const [boardDept, setBoardDept] = useState<string | null>(null);
+  const [organiserCode, setOrganiserCode] = useState<string | null>(null); // shown once, when the fest is created
 
   // Someone who is already in a fest goes straight back to the overview.
   const view: Screen = session && (screen === "welcome" || screen === "join") ? "overview" : screen;
@@ -56,7 +70,15 @@ export default function Home() {
     if (!res.ok || !res.data.code) {
       return setDraftError(res.data.error ?? "Couldn't start the fest. Please try again.");
     }
-    saveSession({ festCode: res.data.code, name: form.name.trim(), department: ORGANISER_DEPT, isOrganiser: true });
+    saveSession({
+      festCode: res.data.code,
+      name: form.name.trim(),
+      department: ORGANISER_DEPT,
+      isOrganiser: true,
+      isHead: false,
+      token: res.data.token,
+    });
+    setOrganiserCode(res.data.organiserCode ?? null);
     setScreen("code");
   }
 
@@ -67,6 +89,7 @@ export default function Home() {
 
   function leave() {
     clearSession();
+    setOrganiserCode(null);
     setScreen("welcome");
   }
 
@@ -117,7 +140,9 @@ export default function Home() {
         />
       )}
 
-      {view === "code" && session && <CodeScreen code={session.festCode} onOpen={() => setScreen("overview")} />}
+      {view === "code" && session && (
+        <CodeScreen code={session.festCode} organiserCode={organiserCode} onOpen={() => setScreen("overview")} />
+      )}
 
       {view === "overview" && session && (
         <OverviewScreen
@@ -132,6 +157,8 @@ export default function Home() {
           }}
           onMyBoard={() => openBoard(session.department)}
           onReport={() => setScreen("report")}
+          onPublished={() => setScreen("published")}
+          onAccess={() => setScreen("access")}
           onLeave={leave}
         />
       )}
@@ -157,6 +184,10 @@ export default function Home() {
       )}
 
       {view === "report" && session?.isOrganiser && <ReportScreen session={session} onBack={() => setScreen("overview")} />}
+
+      {view === "published" && session && <PublishedScreen session={session} onBack={() => setScreen("overview")} />}
+
+      {view === "access" && session?.isOrganiser && <AccessScreen session={session} onBack={() => setScreen("overview")} />}
     </main>
   );
 }

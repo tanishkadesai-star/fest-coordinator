@@ -26,6 +26,41 @@ export const MAX_DETAILS_LENGTH = 1500;
 export const MIN_TASKS = 6;
 export const MAX_TASKS = 14;
 
+// Published files: what can be uploaded. The type is decided by the file extension, never by what the
+// uploader's browser claims, and web pages (html, svg) are not allowed at all.
+export const FILE_CATEGORIES = ["Schedule", "Attendance sheet", "Meeting timetable", "Flow document", "Other"];
+export const MAX_FILE_BYTES = 4 * 1024 * 1024; // 4 MB: the most a hosted function accepts in one request
+export const MAX_TITLE_LENGTH = 80;
+export const ALLOWED_FILE_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  webp: "image/webp",
+  txt: "text/plain",
+  csv: "text/csv",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+};
+
+export const fileExtension = (fileName: string) => (fileName.split(".").pop() ?? "").toLowerCase();
+
+export function validateFileUpload(input: { title: unknown; category: unknown; fileName: string; size: number }): string | null {
+  if (typeof input.title !== "string" || input.title.trim() === "") return "Give the file a title.";
+  if (input.title.trim().length > MAX_TITLE_LENGTH) return `Keep the title under ${MAX_TITLE_LENGTH} characters.`;
+  if (typeof input.category !== "string" || !FILE_CATEGORIES.includes(input.category)) return "Choose a category.";
+  if (!ALLOWED_FILE_TYPES[fileExtension(input.fileName)]) {
+    return "That file type isn't allowed. Use PDF, Word, Excel, PowerPoint, CSV, text or an image.";
+  }
+  if (input.size <= 0) return "That file is empty.";
+  if (input.size > MAX_FILE_BYTES) return "That file is over 4 MB. Make it smaller and try again.";
+  return null;
+}
+
 export type PlanInput = {
   festType: string;
   days: number;

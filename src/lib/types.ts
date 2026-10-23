@@ -14,15 +14,24 @@ export type FestRequest = {
 };
 
 // What the overview screen shows, worked out on the server from the plan and who did what.
-export type OverviewTask = { key: string; title: string; day: number; claimedBy: string | null; done: boolean };
+export type OverviewTask = {
+  key: string;
+  title: string;
+  day: number;
+  claimedBy: string | null;
+  assignedBy: string | null; // set when a head or the organiser gave the task to someone
+  done: boolean;
+};
 export type RosterEntry = { title: string; day: number | null; kind: "plan" | "request"; done: boolean };
-export type RosterMember = { name: string; isOrganiser: boolean; tasks: RosterEntry[] };
+export type RosterMember = { name: string; isOrganiser: boolean; isHead: boolean; tasks: RosterEntry[] };
 export type OverviewDept = {
   name: string;
   total: number;
   done: number;
   inProgress: number;
   percent: number | null; // null when the fest has no saved plan
+  requestsOpen: number; // live requests nobody has taken
+  requestsTaken: number;
   tasks: OverviewTask[];
   members: RosterMember[];
 };
@@ -53,6 +62,23 @@ export type TeamReport = {
 export type Session = {
   festCode: string;
   name: string;
-  department: string;
+  department: string; // "Organiser" for the organiser
   isOrganiser: boolean;
+  isHead: boolean; // a department head: their own department's lead
+  token: string; // private proof of who you are, sent with powers like assigning and publishing
+};
+
+// A file published on the Published page. `url` is a short-lived link to open it.
+export type PublishedFile = {
+  id: string;
+  title: string;
+  category: string;
+  audience: "everyone" | "department";
+  department: string | null;
+  uploadedBy: string;
+  uploaderRole: "organiser" | "head";
+  fileName: string;
+  size: number;
+  createdAt: string;
+  url: string | null;
 };

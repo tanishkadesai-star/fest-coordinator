@@ -14,6 +14,8 @@ export default function OverviewScreen({
   onOpenDept,
   onMyBoard,
   onReport,
+  onPublished,
+  onAccess,
   onLeave,
 }: {
   session: Session;
@@ -24,6 +26,8 @@ export default function OverviewScreen({
   onOpenDept: (name: string) => void;
   onMyBoard: () => void;
   onReport: () => void;
+  onPublished: () => void;
+  onAccess: () => void;
   onLeave: () => void;
 }) {
   const [phaseError, setPhaseError] = useState<string | null>(null);
@@ -32,7 +36,7 @@ export default function OverviewScreen({
   async function setPhase(phase: number) {
     setSettingPhase(phase);
     setPhaseError(null);
-    const res = await postJson(`/api/fest/${session.festCode}/phase`, { name: session.name, phase });
+    const res = await postJson(`/api/fest/${session.festCode}/phase`, { name: session.name, token: session.token, phase });
     if (!res.ok) setPhaseError(res.data.error ?? "Couldn't change the phase. Try again.");
     await refresh();
     setSettingPhase(null);
@@ -45,11 +49,7 @@ export default function OverviewScreen({
         <span className="mono" style={{ fontSize: 12 }}>
           {session.festCode} · {stale ? <span style={{ color: "var(--warn)" }}>OFFLINE</span> : "LIVE"}
         </span>
-        {session.isOrganiser ? (
-          <button className="pill small" onClick={onReport}>Team report</button>
-        ) : (
-          <button className="pill small" onClick={onMyBoard}>My board</button>
-        )}
+        <span style={{ width: 62 }} />
       </div>
 
       <div className="stack" style={{ gap: 6 }}>
@@ -59,6 +59,28 @@ export default function OverviewScreen({
             ORGANISER · {data.organisers.join(", ").toUpperCase()}
             {session.isOrganiser ? " (YOU)" : ""}
           </span>
+        )}
+        {session.isHead && (
+          <span className="mono" style={{ fontSize: 12 }}>
+            YOU · {session.name.toUpperCase()} · {session.department.toUpperCase()} HEAD
+          </span>
+        )}
+      </div>
+
+      <div className="nav">
+        <button className="pill small" onClick={onPublished}>Published</button>
+        {session.isOrganiser ? (
+          <>
+            <button className="pill small" onClick={onReport}>Team report</button>
+            <button className="pill small" onClick={onAccess}>Access codes</button>
+          </>
+        ) : (
+          <>
+            {session.isHead && (
+              <button className="pill small" onClick={() => onOpenDept(session.department)}>My department</button>
+            )}
+            <button className="pill small" onClick={onMyBoard}>My board</button>
+          </>
         )}
       </div>
 
@@ -122,7 +144,7 @@ export default function OverviewScreen({
               <button key={d.name} className="tile" style={colourVar(d.name)} onClick={() => onOpenDept(d.name)}>
                 <span className="tile-name">
                   {d.name}
-                  {!session.isOrganiser && d.name === session.department && <em> · yours</em>}
+                  {!session.isOrganiser && d.name === session.department && <em> · {session.isHead ? "you lead" : "yours"}</em>}
                 </span>
                 <span className="display tile-pct">{d.percent === null ? "–" : `${d.percent}%`}</span>
                 <span className="tile-sub">

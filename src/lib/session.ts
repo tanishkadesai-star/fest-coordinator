@@ -56,7 +56,10 @@ export function useStoredSession(): Session | null {
         typeof s.festCode === "string" &&
         typeof s.name === "string" &&
         typeof s.department === "string" &&
-        typeof s.isOrganiser === "boolean";
+        typeof s.isOrganiser === "boolean" &&
+        typeof s.isHead === "boolean" &&
+        typeof s.token === "string" &&
+        s.token.length > 0; // sessions saved before sign-in tokens existed are asked to log in again
       return ok ? (s as Session) : null;
     } catch {
       return null;

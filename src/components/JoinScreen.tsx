@@ -6,7 +6,16 @@ import { colourVar } from "@/lib/colours";
 import type { Session } from "@/lib/types";
 import { DEPARTMENTS, validateDepartment, validateName } from "@/lib/validate";
 
+type Role = "volunteer" | "head" | "organiser";
+
+const ROLES: { id: Role; label: string }[] = [
+  { id: "volunteer", label: "Volunteer" },
+  { id: "head", label: "Department head" },
+  { id: "organiser", label: "Organiser" },
+];
+
 export default function JoinScreen({ onBack, onJoined }: { onBack: () => void; onJoined: (s: Session) => void }) {
+  const [role, setRole] = useState<Role>("volunteer");
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [department, setDepartment] = useState(DEPARTMENTS[1]);
@@ -20,26 +29,59 @@ export default function JoinScreen({ onBack, onJoined }: { onBack: () => void; o
 
   async function join() {
     const problem =
-      (code.length === 6 ? null : "The fest code has 6 characters.") ??
+      (code.length === 6 ? null : role === "volunteer" ? "The fest code has 6 characters." : "Your access code has 6 characters.") ??
       validateName(name) ??
-      validateDepartment(department);
+      (role === "volunteer" ? validateDepartment(department) : null);
     if (problem) return setError(problem);
     setError(null);
     setLoading(true);
-    const res = await postJson("/api/join", { code, name, department });
+    // Volunteers use the fest code. Heads and the organiser use the access code they were given.
+    const res =
+      role === "volunteer"
+        ? await postJson("/api/join", { code, name, department })
+        : await postJson("/api/login", { accessCode: code, name });
     setLoading(false);
-    if (!res.ok || !res.data.code) return setError(res.data.error ?? "Couldn't join. Please try again.");
-    onJoined({ festCode: res.data.code, name: name.trim(), department, isOrganiser: false });
+    if (!res.ok || !res.data.code || !res.data.token) return setError(res.data.error ?? "Couldn't log in. Please try again.");
+    onJoined({
+      festCode: res.data.code,
+      name: name.trim(),
+      department: res.data.department,
+      isOrganiser: !!res.data.isOrganiser,
+      isHead: !!res.data.isHead,
+      token: res.data.token,
+    });
   }
+
+  const colourFor = role === "volunteer" ? department : DEPARTMENTS[0];
 
   return (
     <div className="screen">
       <div>
         <button className="pill" onClick={onBack}>← Back</button>
       </div>
-      <h1 className="display title" style={{ margin: 0 }}>Join your fest</h1>
+      <h1 className="display title" style={{ margin: 0 }}>Log in</h1>
+
+      <div className="roles" role="tablist" aria-label="Log in as">
+        {ROLES.map((r) => (
+          <button
+            key={r.id}
+            role="tab"
+            aria-selected={role === r.id}
+            className={role === r.id ? "on" : ""}
+            onClick={() => {
+              setRole(r.id);
+              setError(null);
+            }}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+
       <div className="stack">
-        <label className="label" htmlFor="code">Fest code</label>
+        <label className="label" htmlFor="code">
+          {role === "volunteer" ? "Fest code" : role === "head" ? "Your department head code" : "Your organiser code"}
+        </label>
         <input
           id="code"
           className="input code"
@@ -50,6 +92,13 @@ export default function JoinScreen({ onBack, onJoined }: { onBack: () => void; o
           autoComplete="off"
           onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
         />
+        {role !== "volunteer" && (
+          <span className="hint">
+            {role === "head"
+              ? "The organiser gives each department head their own code."
+              : "Shown when you created the fest. It gets you back in as organiser."}
+          </span>
+        )}
       </div>
       <div className="stack">
         <label className="label" htmlFor="name">Your name</label>
@@ -62,24 +111,32 @@ export default function JoinScreen({ onBack, onJoined }: { onBack: () => void; o
           onChange={(e) => setName(e.target.value)}
         />
       </div>
-      <div className="stack">
-        <span className="label">Your department</span>
-        <div className="chips grid">
-          {DEPARTMENTS.map((d) => (
-            <button
-              key={d}
-              className={`chip${department === d ? " on" : ""}`}
-              style={colourVar(d)}
-              onClick={() => setDepartment(d)}
-            >
-              {d}
-            </button>
-          ))}
+      {role === "volunteer" && (
+        <div className="stack">
+          <span className="label">Your department</span>
+          <div className="chips grid">
+            {DEPARTMENTS.map((d) => (
+              <button
+                key={d}
+                className={`chip${department === d ? " on" : ""}`}
+                style={colourVar(d)}
+                onClick={() => setDepartment(d)}
+              >
+                {d}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       {error && <div className="note err" role="alert" ref={errorRef}>{error}</div>}
-      <button className="btn colour spacer" style={colourVar(department)} onClick={join} disabled={loading}>
-        {loading ? "Joining…" : `Join ${department}`}
+      <button className="btn colour spacer" style={colourVar(colourFor)} onClick={join} disabled={loading}>
+        {loading
+          ? "Logging in…"
+          : role === "volunteer"
+            ? `Join ${department}`
+            : role === "head"
+              ? "Log in as department head"
+              : "Log in as organiser"}
       </button>
     </div>
   );

@@ -1,14 +1,6 @@
+import { newCode, newToken } from "@/lib/codes";
 import { db, failure, festExists } from "@/lib/supabase";
-import { ORGANISER_DEPT, validateName, validatePlan, validatePlanInput } from "@/lib/validate";
-
-// No 0/O/1/I so codes are easy to read out over a walkie-talkie.
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-function newCode() {
-  let code = "";
-  for (let i = 0; i < 6; i++) code += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
-  return code;
-}
+import { DEPARTMENTS, ORGANISER_DEPT, validateName, validatePlan, validatePlanInput } from "@/lib/validate";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
@@ -42,17 +34,32 @@ export async function POST(request: Request) {
       const { error } = await db().from("fests").insert({ code, plan, plan_input: planInput });
       if (error) throw error;
     }
+    const token = newToken();
     const { error } = await db().from("members").insert({
       fest_code: code,
       name: body.name.trim(),
       department: ORGANISER_DEPT,
       is_organiser: true,
+      token,
     });
     if (error) {
       if (plan) await db().from("fests").delete().eq("code", code); // don't leave a plan with no organiser
       throw error;
     }
-    return Response.json({ code });
+
+    // One code to get back in as organiser, and one for each department head to log in with.
+    let organiserCode = "";
+    for (let attempt = 0; attempt < 5; attempt++) {
+      organiserCode = newCode();
+      const rows = [
+        { code: organiserCode, fest_code: code, role: "organiser", department: null },
+        ...DEPARTMENTS.map((d) => ({ code: newCode(), fest_code: code, role: "head", department: d })),
+      ];
+      const { error: codesError } = await db().from("access_codes").insert(rows);
+      if (!codesError) break;
+      if (codesError.code !== "23505" || attempt === 4) throw codesError; // 23505 = a code clashed, so try fresh ones
+    }
+    return Response.json({ code, token, organiserCode });
   } catch (e) {
     return failure(e);
   }

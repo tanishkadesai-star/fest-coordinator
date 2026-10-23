@@ -1,6 +1,8 @@
+import { newToken } from "@/lib/codes";
 import { db, failure, festExists } from "@/lib/supabase";
 import { validateDepartment, validateName } from "@/lib/validate";
 
+// A volunteer joins with the fest code, a name and a department.
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const code = String(body.code ?? "").trim().toUpperCase();
@@ -12,14 +14,18 @@ export async function POST(request: Request) {
     if (!(await festExists(code))) {
       return Response.json({ error: "Code not found. Check it with your organiser." }, { status: 404 });
     }
+    const name = body.name.trim();
+    const token = newToken();
     const { error } = await db().from("members").insert({
       fest_code: code,
-      name: body.name.trim(),
+      name,
       department: body.department,
       is_organiser: false,
+      is_head: false,
+      token,
     });
     if (error) throw error;
-    return Response.json({ code });
+    return Response.json({ code, token, department: body.department, isOrganiser: false, isHead: false });
   } catch (e) {
     return failure(e);
   }

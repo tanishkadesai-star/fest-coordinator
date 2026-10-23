@@ -1,9 +1,10 @@
+import { authenticate } from "@/lib/auth";
 import { callTool } from "@/lib/openrouter";
 import { loadOverview } from "@/lib/overviewData";
 import { computeStats, validateReport, type TeamStats } from "@/lib/report";
-import { db, failure, isOrganiser } from "@/lib/supabase";
+import { db, failure } from "@/lib/supabase";
 import type { TeamReport } from "@/lib/types";
-import { DEPARTMENTS, validateName } from "@/lib/validate";
+import { DEPARTMENTS } from "@/lib/validate";
 
 export const maxDuration = 30;
 
@@ -56,11 +57,10 @@ async function currentStats(code: string): Promise<TeamStats> {
 // The organiser's view: live numbers plus the last report, if one was generated.
 export async function GET(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const code = (await params).code.toUpperCase();
-  const name = new URL(request.url).searchParams.get("name") ?? "";
+  const q = new URL(request.url).searchParams;
   try {
-    if (validateName(name) || !(await isOrganiser(code, name))) {
-      return err("Only the organiser can see the team report.", 403);
-    }
+    const caller = await authenticate(code, q.get("name"), q.get("token"));
+    if (!caller?.isOrganiser) return err("Only the organiser can see the team report.", 403);
     const { data, error } = await db().from("fests").select("report").eq("code", code).maybeSingle();
     if (error) throw error;
     return Response.json({ stats: await currentStats(code), report: (data?.report as TeamReport | null) ?? null });
@@ -74,9 +74,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
   const code = (await params).code.toUpperCase();
   const body = await request.json().catch(() => ({}));
   try {
-    if (validateName(body.name) || !(await isOrganiser(code, body.name))) {
-      return err("Only the organiser can generate the team report.", 403);
-    }
+    const caller = await authenticate(code, body.name, body.token);
+    if (!caller?.isOrganiser) return err("Only the organiser can generate the team report.", 403);
     const stats = await currentStats(code);
     if (stats.totalPeople === 0) return err("Nobody except the organiser has joined yet, so there is nothing to report.", 409);
 

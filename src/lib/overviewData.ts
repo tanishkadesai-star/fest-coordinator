@@ -7,9 +7,9 @@ import { DEPARTMENTS } from "./validate";
 export async function loadOverview(code: string): Promise<Overview> {
   const [fest, statuses, members, requests] = await Promise.all([
     db().from("fests").select("plan, plan_input, phase").eq("code", code).maybeSingle(),
-    db().from("task_status").select("task_key, claimed_by, done").eq("fest_code", code),
-    db().from("members").select("name, department, is_organiser").eq("fest_code", code),
-    db().from("requests").select("department, text, claimed_by").eq("fest_code", code).not("claimed_by", "is", null),
+    db().from("task_status").select("task_key, claimed_by, done, assigned_by").eq("fest_code", code),
+    db().from("members").select("name, department, is_organiser, is_head").eq("fest_code", code),
+    db().from("requests").select("department, text, claimed_by").eq("fest_code", code),
   ]);
   for (const r of [fest, statuses, members, requests]) if (r.error) throw r.error;
 

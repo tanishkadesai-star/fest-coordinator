@@ -29,8 +29,8 @@ export function parseTaskKey(key: string): { dept: number; task: number } | null
   return m ? { dept: Number(m[1]), task: Number(m[2]) } : null;
 }
 
-export type StatusRow = { task_key: string; claimed_by: string; done: boolean };
-export type MemberRow = { name: string; department: string; is_organiser: boolean };
+export type StatusRow = { task_key: string; claimed_by: string; done: boolean; assigned_by?: string | null };
+export type MemberRow = { name: string; department: string; is_organiser: boolean; is_head?: boolean };
 export type RequestRow = { department: string; text: string; claimed_by: string | null };
 
 export function computeOverview(args: {
@@ -53,7 +53,14 @@ export function computeOverview(args: {
       planIndex >= 0
         ? plan!.departments[planIndex].tasks.map((t, i) => {
             const s = byKey.get(taskKey(planIndex, i));
-            return { key: taskKey(planIndex, i), title: t.title, day: t.day, claimedBy: s?.claimed_by ?? null, done: !!s?.done };
+            return {
+              key: taskKey(planIndex, i),
+              title: t.title,
+              day: t.day,
+              claimedBy: s?.claimed_by ?? null,
+              assignedBy: s?.assigned_by ?? null,
+              done: !!s?.done,
+            };
           })
         : [];
 
@@ -61,8 +68,12 @@ export function computeOverview(args: {
     const people = new Map<string, RosterMember>();
     for (const m of members.filter((m) => m.department === name)) {
       const existing = people.get(m.name);
-      if (existing) existing.isOrganiser = existing.isOrganiser || m.is_organiser;
-      else people.set(m.name, { name: m.name, isOrganiser: m.is_organiser, tasks: [] });
+      if (existing) {
+        existing.isOrganiser = existing.isOrganiser || m.is_organiser;
+        existing.isHead = existing.isHead || !!m.is_head;
+      } else {
+        people.set(m.name, { name: m.name, isOrganiser: m.is_organiser, isHead: !!m.is_head, tasks: [] });
+      }
     }
     for (const person of people.values()) {
       for (const t of tasks.filter((t) => t.claimedBy === person.name)) {
@@ -82,6 +93,8 @@ export function computeOverview(args: {
       done,
       inProgress: tasks.filter((t) => t.claimedBy && !t.done).length,
       percent: tasks.length ? Math.round((done / tasks.length) * 100) : null,
+      requestsOpen: requests.filter((r) => r.department === name && !r.claimed_by).length,
+      requestsTaken: requests.filter((r) => r.department === name && !!r.claimed_by).length,
       tasks,
       members: [...people.values()].sort((a, b) => Number(b.isOrganiser) - Number(a.isOrganiser) || a.name.localeCompare(b.name)),
     };
