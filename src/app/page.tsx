@@ -8,6 +8,7 @@ import DescribeScreen, { emptyForm, type DescribeForm } from "@/components/Descr
 import DraftScreen from "@/components/DraftScreen";
 import JoinScreen from "@/components/JoinScreen";
 import AccessScreen from "@/components/AccessScreen";
+import AskScreen from "@/components/AskScreen";
 import OverviewScreen from "@/components/OverviewScreen";
 import PublishedScreen from "@/components/PublishedScreen";
 import ReportScreen from "@/components/ReportScreen";
@@ -29,7 +30,8 @@ type Screen =
   | "board"
   | "report"
   | "published"
-  | "access";
+  | "access"
+  | "ask";
 type Draft = { plan: Plan; input: PlanInput };
 
 export default function Home() {
@@ -159,6 +161,7 @@ export default function Home() {
           onReport={() => setScreen("report")}
           onPublished={() => setScreen("published")}
           onAccess={() => setScreen("access")}
+          onAsk={() => setScreen("ask")}
           onLeave={leave}
         />
       )}
@@ -186,6 +189,22 @@ export default function Home() {
       {view === "report" && session?.isOrganiser && <ReportScreen session={session} onBack={() => setScreen("overview")} />}
 
       {view === "published" && session && <PublishedScreen session={session} onBack={() => setScreen("overview")} />}
+
+      {view === "ask" && session && (
+        <AskScreen
+          session={session}
+          onBack={() => setScreen("overview")}
+          onOpenRef={(ref) => {
+            // Tap something an answer mentions to jump to it.
+            if (ref.kind === "file") return setScreen("published");
+            if (ref.kind === "request" && ref.department) return openBoard(ref.department);
+            if (ref.department) {
+              setDeptName(ref.department);
+              setScreen("dept");
+            }
+          }}
+        />
+      )}
 
       {view === "access" && session?.isOrganiser && <AccessScreen session={session} onBack={() => setScreen("overview")} />}
     </main>

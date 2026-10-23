@@ -4,6 +4,28 @@ import { db } from "./supabase";
 import type { Overview, Plan } from "./types";
 import { DEPARTMENTS } from "./validate";
 
+// The overview plus the live requests and published files, for "Ask CueBoard".
+export async function overviewForAsk(code: string) {
+  const [overview, reqs, files] = await Promise.all([
+    loadOverview(code),
+    db()
+      .from("requests")
+      .select("id, department, text, location, created_by, claimed_by")
+      .eq("fest_code", code)
+      .order("created_at", { ascending: false })
+      .limit(200),
+    db()
+      .from("published_files")
+      .select("id, title, category, audience, department, uploaded_by")
+      .eq("fest_code", code)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
+  if (reqs.error) throw reqs.error;
+  if (files.error) throw files.error;
+  return [overview, reqs.data ?? [], files.data ?? []] as const;
+}
+
 export async function loadOverview(code: string): Promise<Overview> {
   const [fest, statuses, members, requests] = await Promise.all([
     db().from("fests").select("plan, plan_input, phase").eq("code", code).maybeSingle(),

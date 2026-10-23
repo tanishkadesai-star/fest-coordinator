@@ -16,6 +16,7 @@ export default function OverviewScreen({
   onReport,
   onPublished,
   onAccess,
+  onAsk,
   onLeave,
 }: {
   session: Session;
@@ -28,6 +29,7 @@ export default function OverviewScreen({
   onReport: () => void;
   onPublished: () => void;
   onAccess: () => void;
+  onAsk: () => void;
   onLeave: () => void;
 }) {
   const [phaseError, setPhaseError] = useState<string | null>(null);
@@ -68,6 +70,7 @@ export default function OverviewScreen({
       </div>
 
       <div className="nav">
+        <button className="pill small" onClick={onAsk}>Ask CueBoard</button>
         <button className="pill small" onClick={onPublished}>Published</button>
         {session.isOrganiser ? (
           <>

@@ -9,6 +9,9 @@ export const LOGIN_RULE: Rule = { limit: 8, windowMs: 10 * 60_000, blockMs: 10 *
 // The shared fest code: a whole college can sit behind one Wi-Fi address and typos are common, so be loose.
 export const JOIN_RULE: Rule = { limit: 40, windowMs: 10 * 60_000, blockMs: 5 * 60_000 };
 
+// Questions to the AI cost a little each time, so each person gets a generous but finite number.
+export const ASK_RULE: Rule = { limit: 30, windowMs: 10 * 60_000, blockMs: 5 * 60_000 };
+
 export function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || request.headers.get("x-real-ip") || "unknown";
