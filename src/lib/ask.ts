@@ -15,6 +15,7 @@ const tag = (day: number, days: number | null) => (day === 0 ? "Prep" : days && 
 
 export const MAX_QUESTION_LENGTH = 300;
 const MAX_REQUESTS = 60;
+const MAX_LINKS = 8;
 
 export type AskContext = Record<string, unknown>;
 export type Built = { context: AskContext; refs: Map<string, Ref> };
@@ -109,9 +110,10 @@ export function buildAskContext(a: {
   const phaseNowTag = o.hasPlan ? tag(o.phase, o.days) : null;
   const yourTasks = tasks.filter((t) => t.owner === caller.name && t.department === caller.department);
   const yourTasksNotDoneYet = yourTasks.filter((t) => t.status !== "done");
-  const openTasksYouCouldTakeNow = caller.isOrganiser
+  const allOpenNow = caller.isOrganiser
     ? []
-    : tasks.filter((t) => t.department === caller.department && t.status === "open" && t.phase === phaseNowTag).slice(0, 8);
+    : tasks.filter((t) => t.department === caller.department && t.status === "open" && t.phase === phaseNowTag);
+  const openTasksYouCouldTakeNow = allOpenNow.slice(0, 8);
 
   const role = caller.isOrganiser ? "organiser" : caller.isHead ? "department head" : "volunteer";
   const context: AskContext = {
@@ -129,7 +131,10 @@ export function buildAskContext(a: {
       department: caller.isOrganiser ? null : caller.department,
       yourTasks,
       yourTasksNotDoneYet,
+      // The counts are worked out here, so the AI can quote them instead of counting for itself.
+      howManyYourTasksNotDoneYet: yourTasksNotDoneYet.length,
       openTasksYouCouldTakeNow,
+      howManyOpenTasksYouCouldTakeNow: allOpenNow.length,
     },
     departments,
     tasks,
@@ -163,7 +168,7 @@ export function validateAnswer(raw: unknown, built: Built, question: string): An
   const r = raw as { answer?: unknown; references?: unknown } | null;
   if (!r || typeof r.answer !== "string" || r.answer.trim() === "" || r.answer.length > 1200) return fail("no usable answer");
   const list = r.references ?? [];
-  if (!Array.isArray(list) || list.length > 8) return fail("references are not a short list");
+  if (!Array.isArray(list) || list.length > 40) return fail("references are not a sensible list");
 
   const references: Ref[] = [];
   for (const item of list) {
@@ -179,5 +184,6 @@ export function validateAnswer(raw: unknown, built: Built, question: string): An
   const invented = (r.answer.match(/\d+/g) ?? []).find((n) => !allowed.has(n));
   if (invented) return fail(`it quotes a number that isn't in the data: ${invented}`);
 
-  return { ok: true, answer: r.answer.trim(), references };
+  // Every reference was checked above. A long list of tasks only gets its first few links on screen.
+  return { ok: true, answer: r.answer.trim(), references: references.slice(0, MAX_LINKS) };
 }

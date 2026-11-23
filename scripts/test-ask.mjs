@@ -98,7 +98,10 @@ check("a number that only appears inside an id is not allowed", ok("There are 77
 check("a number from the question itself is allowed", ok("Nothing about gate 9 in the data.", [], volunteer, "any news from gate 9?").ok, true);
 check("an empty answer is rejected", ok("   ", []).ok, false);
 check("garbage is rejected", validateAnswer("hello", volunteer, "hi").ok, false);
-check("too many references are rejected", ok("Many.", Array.from({ length: 9 }, () => ({ kind: "task", id: "1-1" }))).ok, false);
+const many = ok("Many tasks.", organiser.context.tasks.map((t) => ({ kind: "task", id: t.id })).concat(organiser.context.tasks.map((t) => ({ kind: "task", id: t.id }))), organiser);
+check("a long list is accepted, with only the first 8 links kept", [many.ok, many.references?.length <= 8], [true, true]);
+check("a ridiculous number of references is rejected", ok("Many.", Array.from({ length: 41 }, () => ({ kind: "task", id: "1-1" }))).ok, false);
+check("one invalid reference hidden in a long list still rejects the answer", ok("Many.", [...organiser.context.tasks.map((t) => ({ kind: "task", id: t.id })), { kind: "task", id: "9-9" }], organiser).ok, false);
 check("a malformed reference is rejected", ok("x", [{ kind: "banana", id: "1" }]).ok, false);
 
 console.log(failed === 0 ? "\nAll checks passed." : `\n${failed} check(s) FAILED.`);
