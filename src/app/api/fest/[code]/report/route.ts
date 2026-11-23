@@ -84,7 +84,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
       system: SYSTEM,
       user: `Team data:\n${JSON.stringify(stats)}`,
       tools: [TOOL],
-      maxTokens: 8000,
+      maxTokens: 3000,
       timeoutMs: 27_000,
     });
     if (!result.ok) {

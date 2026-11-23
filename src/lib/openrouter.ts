@@ -2,7 +2,14 @@
 // Always Google models, always served by Google's own infrastructure.
 import { getEnv } from "./env";
 
-const PROVIDER = { only: ["google-vertex", "google-ai-studio"], allow_fallbacks: false };
+// Google's own servers only. Google AI Studio goes first because that is where your own Google key
+// (added in OpenRouter under BYOK) is used, so it doesn't draw on OpenRouter credit. Vertex is the
+// backup if AI Studio refuses a request, for example when a free quota runs out.
+const PROVIDER = {
+  order: ["google-ai-studio", "google-vertex"],
+  only: ["google-ai-studio", "google-vertex"],
+  allow_fallbacks: true,
+};
 
 export type ToolSpec = { name: string; description: string; parameters: Record<string, unknown> };
 

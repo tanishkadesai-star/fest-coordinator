@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       `Fest type: ${input.festType}\nNumber of days: ${input.days}\nExpected attendance: ${input.attendance}\n` +
       `Highlights: ${input.highlights.trim()}\nExtra details: ${input.details?.trim() || "(none given)"}`,
     tools: tools(input.days),
-    maxTokens: 12000,
+    maxTokens: 6000,
     timeoutMs: 27_000,
   });
 

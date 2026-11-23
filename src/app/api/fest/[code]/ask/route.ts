@@ -100,7 +100,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
         system: SYSTEM,
         user: base + feedback,
         tools: TOOLS,
-        maxTokens: 6000,
+        maxTokens: 3000,
         timeoutMs: 12_000,
       });
       if (!result.ok) {
